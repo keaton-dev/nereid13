@@ -1,0 +1,9 @@
+Package: com.keaton.nereid13
+Name: Nereid13
+Depends: mobilesubstrate, firmware(>= 13.0)
+Version: 0.0.1-beta1
+Architecture: iphoneos-arm
+Description: Minimalist lockscreen music player.
+Maintainer: keaton <4xdCNz3B9JN3HuX@protonmail.com>
+Author: keaton <4xdCNz3B9JN3HuX@protonmail.com>
+Section: Tweaks
