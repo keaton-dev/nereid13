@@ -1,7 +1,18 @@
-/*#import <Foundation/Foundation.h>
-#import <UIKit/UIKit.h>
-#import <UIKit/UIControl.h>*/
 #import "UIImage+BlurAndDarken.h"
+
+@interface SBApplication : NSObject
+@property (nonatomic,readonly) NSString * bundleIdentifier;
+@end
+
+@interface CSCoverSheetViewController : UIViewController
+@property (nonatomic, retain) UIImageView *nrdArtworkView;
+@end
+
+@interface SBMediaController : NSObject
+@property (nonatomic,readonly) SBApplication * nowPlayingApplication;
+@property (nonatomic, retain) NSData *nrdLastImageData;
+-(id)_nowPlayingInfo;
+@end
 
 @interface MTMaterialView : UIView
 @property (nonatomic, assign, readwrite, getter = isHidden) BOOL hidden;

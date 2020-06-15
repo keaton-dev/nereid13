@@ -1,7 +1,7 @@
 Package: com.keaton.nereid13
 Name: Nereid13
-Depends: mobilesubstrate, firmware(>= 13.0)
-Version: 0.0.1-beta1
+Depends: mobilesubstrate, firmware(>= 13.0), ws.hbang.alderis
+Version: 0.0.1-beta2
 Architecture: iphoneos-arm
 Description: Minimalist lockscreen music player.
 Maintainer: keaton <4xdCNz3B9JN3HuX@protonmail.com>

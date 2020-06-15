@@ -1,26 +1,60 @@
-#import <MediaRemote/MediaRemote.h>
 #import "Tweak.h"
+#import <MediaRemote/MediaRemote.h>
 
-@interface CSCoverSheetViewController : UIViewController
-@property (nonatomic, retain) UIImageView *nrdArtworkView;
-@end
-
-@interface SBMediaController : NSObject
-@property (nonatomic, retain) NSData *nrdLastImageData;
-@end
-
+BOOL enabled;
+BOOL artworkAsBackground;
+BOOL hideVolumeSlider;
 BOOL CC;
-NSInteger blurRadius = 1;
+NSInteger blurRadius = 0;
 NSInteger darken = 0;
+//NSInteger color = 0;
+NSInteger artworkMode = 0;
+
 UIImageView *artworkView = nil;
 CSNotificationAdjunctListViewController *adjunctListViewController = nil;
+
 BOOL hasArtwork = NO;
-NSInteger player = 2;    // Dawn
+
+NSInteger player = 0;    // Dawn
 
 %hook CSNotificationAdjunctListViewController
+-(id)init {
+    %orig;
+    adjunctListViewController = self;
+    //return self;
+
+    if (@available(iOS 13, *)) {
+        [self setOverrideUserInterfaceStyle:player];
+    }
+    return self;
+}
+
 -(void)_didUpdateDisplay {
     %orig;
-    if (artworkView) artworkView.hidden = (![self isShowingMediaControls] || !hasArtwork);
+    if (artworkView) artworkView.hidden = (!artworkAsBackground || ![self isShowingMediaControls] || !hasArtwork);
+}
+
+%new
+-(void)updateTraitOverride {
+    if (@available(iOS 13, *)) {
+        [self setOverrideUserInterfaceStyle:player];
+    }
+}
+/*-(id)init {
+    if ((self = %orig)) {
+        if (@available(iOS 13, *)) {
+            [self setOverrideUserInterfaceStyle:player];
+        }
+    }
+    return self;
+}*/
+-(void)viewDidLoad {
+    if (player >= 0) {
+        if (@available(iOS 13, *)) {
+            [self setOverrideUserInterfaceStyle:player];
+        }
+    }
+    %orig;
 }
 %end
 
@@ -33,9 +67,12 @@ NSInteger player = 2;    // Dawn
 
     MRMediaRemoteGetNowPlayingInfo(dispatch_get_main_queue(), ^(CFDictionaryRef information) {
 
+    if(!artworkAsBackground) return;
+
     NSDictionary *dict = (__bridge NSDictionary *)(information);    if(dict) {
     if (dict[(__bridge NSString *)kMRMediaRemoteNowPlayingInfoArtworkData]) {
-    UIImage *image = [UIImage imageWithData:[dict objectForKey:(__bridge NSString *)kMRMediaRemoteNowPlayingInfoArtworkData]];    NSLog(@"Got album art! %@", image);
+    UIImage *image = [UIImage imageWithData:[dict objectForKey:(__bridge NSString *)kMRMediaRemoteNowPlayingInfoArtworkData]];    //NSLog(@"Got album art! %@", image);
+    if(!image) return;
     hasArtwork = YES;
 
     if (self.nrdLastImageData && [self.nrdLastImageData isEqualToData:[dict objectForKey:(__bridge NSString*)kMRMediaRemoteNowPlayingInfoArtworkData]]) return;
@@ -45,12 +82,13 @@ NSInteger player = 2;    // Dawn
                 if (blurRadius > 0 || darken > 0) {
                     toImage = [image darkened:((CGFloat)darken/100.0f) andBlurredImage:blurRadius];
                 }
+
     [UIView transitionWithView:artworkView duration:0.4f options:UIViewAnimationOptionTransitionCrossDissolve animations:^{
                     artworkView.image = toImage;
                 } completion:nil];
     }
     }
-    if (artworkView && adjunctListViewController) artworkView.hidden = (![adjunctListViewController isShowingMediaControls] || !hasArtwork);    });
+    if (artworkView && adjunctListViewController) artworkView.hidden = (!artworkAsBackground || ![adjunctListViewController isShowingMediaControls] || !hasArtwork);    });
 }
 %end
 
@@ -60,20 +98,22 @@ NSInteger player = 2;    // Dawn
 
 -(void)viewWillAppear:(BOOL)animated {
     %orig;
-
-    if(hasArtwork && !self.nrdArtworkView) {
+    if(!self.nrdArtworkView) {
    self.nrdArtworkView = [[UIImageView alloc] initWithFrame:self.view.bounds];
     self.nrdArtworkView.contentMode = UIViewContentModeScaleAspectFill;
     [self.view insertSubview:self.nrdArtworkView atIndex:0];
     self.nrdArtworkView.hidden = NO;
     self.nrdArtworkView.image = [UIImage new];
-    NSLog(@"setImage, set");
+    //NSLog(@"setImage, set");
     }
 
-    if (adjunctListViewController) self.nrdArtworkView.hidden = (![adjunctListViewController isShowingMediaControls] || !hasArtwork);
-    //else self.nrdArtworkView.hidden = YES;
-
     artworkView = self.nrdArtworkView;
+
+    if (artworkMode == 0) self.nrdArtworkView.contentMode = UIViewContentModeScaleAspectFill;
+    else self.nrdArtworkView.contentMode = UIViewContentModeScaleAspectFit;
+
+    if (adjunctListViewController) self.nrdArtworkView.hidden = (!artworkAsBackground || ![adjunctListViewController isShowingMediaControls] || !hasArtwork);
+    else self.nrdArtworkView.hidden = YES;
 
     self.nrdArtworkView.frame = self.view.bounds;
 }
@@ -103,7 +143,7 @@ NSInteger player = 2;    // Dawn
 
 %hook MRPlatterViewController
 -(void)viewDidLoad {
-    if(CC) {
+    if(CC || !hideVolumeSlider) {
         %orig;
     } else {
         %orig;
@@ -147,7 +187,7 @@ NSInteger player = 2;    // Dawn
 %end
 
 // Dawn
-%hook CSNotificationAdjunctListViewController
+/*%hook CSNotificationAdjunctListViewController
 %new
 -(void)updateTraitOverride {
     if (@available(iOS 13, *)) {
@@ -156,7 +196,6 @@ NSInteger player = 2;    // Dawn
 }
 -(id)init {
     if ((self = %orig)) {
-        //[NSNotificationCenter.defaultCenter addObserver:self selector:@selector(updateTraitOverride) name:@"com.keaton.mediaplus/override" object:nil];
         if (@available(iOS 13, *)) {
             [self setOverrideUserInterfaceStyle:player];
         }
@@ -171,4 +210,23 @@ NSInteger player = 2;    // Dawn
     }
     %orig;
 }
-%end
+%end*/
+
+static void loadPrefs() {
+    NSDictionary *prefs = [[NSDictionary alloc] initWithContentsOfFile:@"/var/mobile/Library/Preferences/com.keaton.nereid13.plist"];
+    if(prefs) {
+        enabled = [prefs objectForKey:@"tweakEnabled"] ? [[prefs objectForKey:@"tweakEnabled"] boolValue] : enabled;   
+        artworkAsBackground = [prefs objectForKey:@"artworkAsBackground"] ? [[prefs objectForKey:@"artworkAsBackground"] boolValue] : enabled;
+        hideVolumeSlider = [prefs objectForKey:@"hideVolumeSlider"] ? [[prefs objectForKey:@"hideVolumeSlider"] boolValue] : enabled;
+        blurRadius = [prefs objectForKey:@"blurRadius"] ? [[prefs objectForKey:@"blurRadius"] floatValue] : 0;
+        darken = [prefs objectForKey:@"darken"] ? [[prefs objectForKey:@"darken"] floatValue] : 0;
+        //color = [prefs objectForKey:@"color"] ? [[prefs objectForKey:@"color"] floatValue] : 0;
+        player = [prefs objectForKey:@"player"] ? [[prefs objectForKey:@"player"] intValue] : 0;
+        artworkMode = [prefs objectForKey:@"artworkMode"] ? [[prefs objectForKey:@"artworkMode"] intValue] : 0;
+    }
+}
+
+%ctor {
+    CFNotificationCenterAddObserver(CFNotificationCenterGetDarwinNotifyCenter(), NULL, (CFNotificationCallback)loadPrefs, CFSTR("com.keaton.nereid13/settingschanged"), NULL, CFNotificationSuspensionBehaviorDeliverImmediately);
+    loadPrefs();
+}
